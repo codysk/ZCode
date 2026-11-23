@@ -10,6 +10,7 @@ import {
 import type { SessionControlBinding } from "@zcode/core/session-control";
 import { isAbsolute, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import {
   createInMemorySessionEventStore,
   createNodeToolArtifactStore,
@@ -548,7 +549,8 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
       (messageEnabled
         ? createNodeSessionMailboxAdapter({
             rootDir: resolvePath(
-              (options.env ?? process.env).ZCODE_MAILBOX_ROOT ?? "~/.zcode/mailbox",
+              (options.env ?? process.env).ZCODE_MAILBOX_ROOT ??
+                join(resolveUserDataHome(options.env ?? process.env), ".zcode", "mailbox"),
             ),
           })
         : undefined);

@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { existsSync } from "node:fs";
 import { cp, lstat, mkdir, readFile, readdir, rm } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { PluginSyncMarketplaceMirrorInspection } from "@zcode/shared";
 import { PLUGIN_DATA_SYNC_MAX_ITEM_BYTES } from "@zcode/shared";
@@ -113,7 +114,7 @@ export function createPluginSyncService(options?: {
 }
 
 export function resolveUserHomeDir(): string {
-  return process.env.HOME?.trim() || process.env.USERPROFILE?.trim() || homedir();
+  return resolveUserDataHome();
 }
 
 export function getUserZcodeConfigPath(): string {

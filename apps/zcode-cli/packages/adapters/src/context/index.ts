@@ -4,6 +4,7 @@
 
 import { readFile, stat } from "node:fs/promises";
 import { arch, homedir, release } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { basename, dirname, join, resolve } from "node:path";
 import { CONTEXT_SOURCE_INSTRUCTIONS_READ_FAILED, formatLocalIsoDate } from "@zcode/contracts";
 import type {
@@ -275,6 +276,10 @@ async function findDefaultUserInstructionFile(
 }
 
 function resolveUserHomeDir(env: NodeJS.ProcessEnv): string {
+  // 与 App 侧 paths.ts resolveAgentUserInstructionsHomeDir 同源（@zcode/shared/user-data-home），
+  // Dev 注入 ZCODE_USER_HOME 后两侧的 AGENTS.md 路径保持一致。
+  const override = env.ZCODE_USER_HOME?.trim();
+  if (override) return override;
   const envHome = env.HOME?.trim() || env.USERPROFILE?.trim();
   return envHome && envHome.length > 0 ? envHome : homedir();
 }

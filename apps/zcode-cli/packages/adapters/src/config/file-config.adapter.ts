@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { basename, dirname, join, resolve } from "node:path";
 import type { RuntimeConfigPatch, UiLocale } from "@zcode/contracts";
 import { z } from "zod";
@@ -60,7 +61,15 @@ export const VISUALIZE_PLUGIN_ID = "visualize@zcode-plugins-official";
 const VISUALIZE_MIGRATION_KEY = "visualizeDefaultOffMigrated";
 
 const DEFAULT_CONFIG_FILE = "config.json";
+// config 文件基目录经 ZCODE_USER_HOME 契约解析（Dev 隔离到 <userHome>/.zcode/cli）；
+// 无 override 时保留 ~ 前缀默认值，resolvePath 的 homedir 展开语义不变。
 const DEFAULT_BASE_DIR = "~/.zcode/cli";
+
+function getDefaultBaseDir(): string {
+  return process.env.ZCODE_USER_HOME?.trim()
+    ? join(resolveUserDataHome(), ".zcode", "cli")
+    : DEFAULT_BASE_DIR;
+}
 
 /**
  * Resolve path with ~ expansion
@@ -79,7 +88,7 @@ export function loadFileConfig(filePath?: string, options: FileConfigOptions = {
   const resolvedPath = filePath
     ? resolvePath(filePath)
     : join(
-        resolvePath(options.baseDir ?? DEFAULT_BASE_DIR),
+        resolvePath(options.baseDir ?? getDefaultBaseDir()),
         options.configFileName ?? DEFAULT_CONFIG_FILE,
       );
 
@@ -517,7 +526,7 @@ export async function removeSuppressedBuiltinInFileConfig(
  * Get default config file path
  */
 export function getDefaultConfigPath(): string {
-  return join(resolvePath(DEFAULT_BASE_DIR), DEFAULT_CONFIG_FILE);
+  return join(resolvePath(getDefaultBaseDir()), DEFAULT_CONFIG_FILE);
 }
 
 /**

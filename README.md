@@ -65,10 +65,10 @@ pnpm dev:desktop:test
 
 `pnpm dev:desktop` 默认等同于 `pnpm dev:desktop:prod`，使用生产服务配置。启动脚本会准备本地运行资源、构建桌面 Agent，再启动 Electron 和源码监听。
 
-需要独立开发数据目录时，可设置 `ZCODE_DATA_BASE_DIR`。例如在 macOS / Linux 中：
+Dev 构建的数据目录由代码固定在 `~/.zcode-dev`（与正式版 `~/.zcode` 隔离，含 agent 会话库），无需额外设置。需要临时指向其他目录时仍可覆盖 `ZCODE_DATA_BASE_DIR`：
 
 ```bash
-ZCODE_DATA_BASE_DIR="$HOME/.zcode-dev-home" pnpm dev:desktop:test
+ZCODE_DATA_BASE_DIR="$HOME/.zcode-dev-e2e" pnpm dev:desktop:test
 ```
 
 ### 远程功能（SSH/WSL）

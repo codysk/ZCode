@@ -695,7 +695,20 @@ export class SourceServerDirectory {
           if (!input.sshAuthMethod) {
             throw new Error("SSH authentication method is required");
           }
-          if (input.sshAuthMethod === "password") {
+          if (input.sshAuthMethod === "agent") {
+            // Agent 模式不保存任何凭据：连接期由 ssh-agent 与 config 解析的 identityfile 认证
+            // （docs/ssh-remote-config-resolution.md）；旧凭据全部清除，避免残留可用密码。
+            // normalizedTarget 已不携带瞬态 password/privateKeyPassphrase，只需剥掉持久化凭据字段。
+            await deleteCredential(currentProfile.target.passwordCredentialKey);
+            await deleteCredential(currentProfile.target.privateKeyPassphraseCredentialKey);
+            const {
+              privateKeyPath: _privateKeyPath,
+              passwordCredentialKey: _passwordCredentialKey,
+              privateKeyPassphraseCredentialKey: _privateKeyPassphraseCredentialKey,
+              ...agentTarget
+            } = normalizedTarget;
+            nextTarget = agentTarget as SSHProfileTarget;
+          } else if (input.sshAuthMethod === "password") {
             const { privateKeyPath: _privateKeyPath, ...passwordTarget } = normalizedTarget;
             const passwordCredentialKey =
               currentProfile.target.passwordCredentialKey ??
@@ -1432,7 +1445,22 @@ export class SourceServerDirectory {
       profile.target.privateKeyPath &&
       (!profile.target.privateKeyPassphraseCredentialKey || privateKeyPassphrase),
     );
-    if (!hasPasswordAuth && !hasPrivateKeyAuth) return null;
+    // Agent 模式 profile 不保存任何凭据：认证由本机 ssh-agent 与 config 密钥承担
+    // （docs/ssh-remote-config-resolution.md），不属于“需要交互凭据”，可静默连接。
+    const isAgentAuth = !profile.target.passwordCredentialKey && !profile.target.privateKeyPath;
+    if (!hasPasswordAuth && !hasPrivateKeyAuth) {
+      if (!isAgentAuth) return null;
+      return {
+        kind: "ssh",
+        host: profile.target.host,
+        port: profile.target.port,
+        username: profile.target.username,
+        ...(profile.target.sshConfigAlias ? { sshConfigAlias: profile.target.sshConfigAlias } : {}),
+        ...(profile.target.assetInstallMode
+          ? { assetInstallMode: profile.target.assetInstallMode }
+          : {}),
+      };
+    }
     return {
       kind: "ssh",
       host: profile.target.host,

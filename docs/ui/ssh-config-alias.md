@@ -12,7 +12,7 @@
   - `Port -> port`
   - `User -> username`
   - `IdentityFile -> privateKeyPath`
-- 当 alias 含 `IdentityFile` 时，认证方式自动切换为 `privateKey`。
+- 当 alias 含 `IdentityFile` 时，认证方式自动切换为 `privateKey`；未配置时默认 `SSH Agent` 模式（对齐 ssh CLI 的 agent/默认密钥语义，2026-11 新增，见 docs/ssh-remote-config-resolution.md）。
 - 用户后续手动改动 SSH 关键字段（host/port/username/privateKey）会清除“已选 alias”状态，避免误导。
 - 通过 alias 建立的 SSH remote workspace 会把 alias 作为非敏感连接元数据写入 remote target snapshot。
 - 通过 alias 首次识别一个 Source 设备时，alias 作为设备默认名称；已经存在或已经手工改名的设备不被后续握手覆盖。

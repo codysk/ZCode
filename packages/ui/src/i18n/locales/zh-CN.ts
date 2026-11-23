@@ -2820,6 +2820,9 @@ const zhCN: Record<string, string> = {
   "ssh.authMethod": "认证方式",
   "ssh.auth.password": "密码",
   "ssh.auth.privateKey": "私钥",
+  "ssh.auth.agent": "SSH Agent",
+  "ssh.auth.agentHint":
+    "使用本机 SSH agent 与 ssh config 密钥认证，无需输入凭据；与命令行 ssh 的认证行为一致。",
   "ssh.assetInstallMode": "资源下载方式",
   "ssh.advancedOptions": "高级选项",
   "ssh.assetInstallMode.local-download-upload": "本地下载后上传",

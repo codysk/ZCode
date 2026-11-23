@@ -9,6 +9,7 @@ import {
   installBrowserLocalPreview,
 } from "@desktop/main/browser-local-preview/index.js";
 import { createRemoteConversationTelemetryDispatcher } from "@zcode/shared/conversation-telemetry";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { installRequestSecurityDiagnostics } from "./request-security-edition/index.js";
 import { createLocalTtftExporter } from "./localTtftExporter.js";
 /* eslint-disable max-lines */
@@ -655,7 +656,9 @@ async function runBrowserCommandOnView(params: {
 let currentDesktopZoomLevel = 0;
 let currentDesktopWindowSize: DesktopWindowSize | undefined;
 const preloadPath = join(import.meta.dirname, "../preload/index.cjs");
-const settingsFile = join(homedir(), ".zcode", "v2", "setting.json");
+// ZCODE_USER_HOME：Dev 隔离契约下随 dev 数据根走（early bootstrap 在本文件 import
+// 阶段已注入，此处模块体求值时 env 必然就位）；生产不注入、解析回真实 HOME。
+const settingsFile = join(resolveUserDataHome(), ".zcode", "v2", "setting.json");
 let activeAppShutdownPolicy = resolveAppShutdownPolicy("normal", process.platform);
 let activeAppShutdownKind: AppShutdownKind | null = null;
 const WINDOWS_AGENT_FORCE_KILL_TIMEOUT_MS = 2_000;

@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { SkillRoot, SkillSource } from "@zcode/contracts";
 
@@ -25,7 +26,8 @@ export async function resolveDefaultSkillRoots(
   const resolvedWorkingDirectory = resolve(workingDirectory);
   const roots: SkillRoot[] = [];
   const includeZcode = options.includeZcodeSkills ?? true;
-  const home = options.homeDirectory ?? homedir();
+  // 用户级技能根的 HOME 锚点与 App 侧 skillsService 同源（ZCODE_USER_HOME 契约）。
+  const home = options.homeDirectory ?? resolveUserDataHome();
   let priority = 0;
   const nextPriority = () => {
     priority += PRIORITY_STEP;

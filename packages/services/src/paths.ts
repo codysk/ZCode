@@ -9,6 +9,7 @@ import {
   DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE,
   ZCODE_AGENT_RUNTIME,
 } from "@zcode/shared";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 
 let _dataBaseDir: string | null = null;
 export const ZCODE_WINDOWS_APP_INSTALL_DIR_ENV = "ZCODE_WINDOWS_APP_INSTALL_DIR";
@@ -70,13 +71,14 @@ export function getCredentialsFilePath(): string {
 /**
  * Agent 侧用户级默认指令（个性化）文件的 home 解析。
  * 必须与 CLI adapter（apps/zcode-cli/packages/adapters/src/context/index.ts 的
- * resolveUserHomeDir）保持完全一致：只认 HOME/USERPROFILE。不能改用
+ * resolveUserHomeDir）保持完全一致：两者都经 @zcode/shared/user-data-home 解析
+ * （ZCODE_USER_HOME > HOME/USERPROFILE > os.homedir()）。不能改用
  * ZCODE_DATA_BASE_DIR（CLI 读该文件时忽略它）或 ZCODE_DESKTOP_HOME_DIR
  * （agent 子进程不认），否则 App 写的文件和 Agent 读的文件会分叉。
+ * ZCODE_USER_HOME 由 Dev 构建注入（彻底隔离 ~/.zcode），生产不设置、行为不变。
  */
 export function resolveAgentUserInstructionsHomeDir(env: NodeJS.ProcessEnv = process.env): string {
-  const envHome = env.HOME?.trim() || env.USERPROFILE?.trim();
-  return envHome && envHome.length > 0 ? envHome : homedir();
+  return resolveUserDataHome(env);
 }
 
 /** `{home}/.zcode/AGENTS.md`：用户自定义指令（个性化）的唯一事实源文件。 */

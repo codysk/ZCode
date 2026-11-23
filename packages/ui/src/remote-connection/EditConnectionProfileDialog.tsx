@@ -108,7 +108,15 @@ function EditConnectionProfileForm({
       form.setHost(profile.target.host);
       form.setPort(String(profile.target.port ?? 22));
       form.setUsername(profile.target.username);
-      form.setSshAuthMethod(profile.target.privateKeyPath ? "privateKey" : "password");
+      form.setSshAuthMethod(
+        profile.target.privateKeyPath
+          ? "privateKey"
+          : // 已保存密码的连接沿用密码模式（密码留空表示继续使用已存凭据）；
+            // 两者都没有的连接（含 agent 模式保存的）回到 agent。
+            profile.target.passwordCredentialKey
+            ? "password"
+            : "agent",
+      );
       form.setPrivateKeyPath(profile.target.privateKeyPath ?? "");
       if (profile.target.sshConfigAlias)
         form.applySshConfigAlias({

@@ -29,6 +29,7 @@ import {
   TID_SSH_CONFIG_ALIAS_SELECT,
   TID_SSH_AUTH_PASSWORD,
   TID_SSH_AUTH_PRIVATE_KEY,
+  TID_SSH_AUTH_AGENT,
   TID_SSH_HOST_INPUT,
   TID_SSH_PASSWORD_INPUT,
   TID_SSH_PORT_INPUT,
@@ -521,7 +522,7 @@ export function RemoteConnectionFields({
         ? TID_SSH_USERNAME_INPUT
         : sshAuthMethod === "password"
           ? TID_SSH_PASSWORD_INPUT
-          : !privateKeyPath.trim()
+          : sshAuthMethod === "privateKey" && !privateKeyPath.trim()
             ? TID_SSH_PRIVATE_KEY_INPUT
             : null;
     const target = firstEmptyTestId
@@ -724,6 +725,11 @@ export function RemoteConnectionFields({
                     label: intl.formatMessage({ id: "ssh.auth.privateKey" }),
                     testId: TID_SSH_AUTH_PRIVATE_KEY,
                   },
+                  {
+                    value: "agent",
+                    label: intl.formatMessage({ id: "ssh.auth.agent" }),
+                    testId: TID_SSH_AUTH_AGENT,
+                  },
                 ]}
               />
             </div>
@@ -747,6 +753,10 @@ export function RemoteConnectionFields({
                 />
                 <FieldError id={errorId("password")} message={errorOf("password")} />
               </div>
+            ) : sshAuthMethod === "agent" ? (
+              // Agent 模式不收集凭据：连接期由 ssh2 走本机 SSH_AUTH_SOCK agent，
+              // config 解析出的 identityfile 也会按可用性参与认证（docs/ssh-remote-config-resolution.md）。
+              <FieldHint>{intl.formatMessage({ id: "ssh.auth.agentHint" })}</FieldHint>
             ) : (
               <div className="space-y-3">
                 <div>

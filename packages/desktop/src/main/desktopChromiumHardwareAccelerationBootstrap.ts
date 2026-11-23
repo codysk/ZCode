@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { join } from "node:path";
 
 interface ChromiumHardwareAccelerationApp {
@@ -7,7 +7,7 @@ interface ChromiumHardwareAccelerationApp {
 }
 
 export function resolveChromiumHardwareAccelerationSettingsFile(
-  homePath: string = homedir(),
+  homePath: string = resolveUserDataHome(),
 ): string {
   return join(homePath, ".zcode", "v2", "setting.json");
 }

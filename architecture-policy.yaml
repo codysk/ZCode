@@ -2480,6 +2480,17 @@ exceptions:
     paths:
       - packages/zcode-cua/src/**
     reason: The whole zcode-cua producer package (broker, native adapters, tools) entered the repo after the gate timestamp as pre-existing code moved from a separate repository; adopting its internal layers needs a dedicated CONTRACT pass (it has known internal cycles by design), not a mechanical split in this branch.
+  - id: ssh-config-resolution-unmanaged-new-files
+    rule: unmanaged-new-file
+    paths:
+      - packages/server/src/remote/sshConfigResolution.ts
+      - packages/server/src/remote/sshProxyTransport.ts
+    reason: SSH 远端连接的有效 ssh config 解析与代理链传输层（docs/ssh-remote-config-resolution.md）；与既有 SSHBackend 同属未受管 server 模块的 remote 实现，本改动只在 ensureConnected 边界接线，不改变 backend 工厂与连接契约；接管整个 remote 目录（含超限的存量文件）需要单独的模块化改造，不在本次范围内。
+  - id: user-data-home-unmanaged-new-file
+    rule: unmanaged-new-file
+    paths:
+      - packages/shared/src/userDataHome.ts
+    reason: 用户级 HOME 锚定路径的统一契约（ZCODE_USER_HOME 契约见 docs/development-mise-runtime.md）：App（services）与 CLI（adapters/bootstrap）两侧的 AGENTS.md/skills/workflows/config.json/mailbox/.claude 解析都经此同一入口，Dev 构建注入后彻底隔离 ~/.zcode。文件是单一纯函数（15 行），放入 shared 既有 node 子入口旁，不涉及模块边界变更。
   - id: ui-more-locales-new-files
     rule: unmanaged-new-file
     paths:

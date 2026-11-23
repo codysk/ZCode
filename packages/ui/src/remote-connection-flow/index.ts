@@ -1609,7 +1609,14 @@ export function useRemoteConnectionFlow(options: RemoteConnectionFlowOptions) {
             target.privateKeyPath &&
             (!expectsPrivateKeyPassphrase || credentials?.privateKeyPassphrase),
           );
-          if (!hasPasswordAuth && !hasPrivateKeyAuth) {
+          // Agent 模式 profile 的 target 不带任何凭据标记（无 passwordCredentialKey /
+          // privateKeyPath），认证由本机 ssh-agent 与 config 密钥承担
+          // （docs/ssh-remote-config-resolution.md），不属于“凭据缺失”，不能 fail closed。
+          const isAgentAuth =
+            profile.target.kind === "ssh" &&
+            !profile.target.passwordCredentialKey &&
+            !profile.target.privateKeyPath;
+          if (!isAgentAuth && !hasPasswordAuth && !hasPrivateKeyAuth) {
             // Bug 原因：Profile ref 存在但 value 缺失时，旧路径仍以空认证 target 发起 SSH，
             // 把“需要交互凭据”误报成服务端认证失败。认证链不完整必须在网络调用前 fail closed。
             updatePendingRemoteTarget(target);

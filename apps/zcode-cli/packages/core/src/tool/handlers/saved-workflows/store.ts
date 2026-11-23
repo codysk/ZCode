@@ -18,6 +18,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { join } from "node:path";
 import {
   SAVED_WORKFLOW_FILE_EXTENSION,
@@ -59,7 +60,9 @@ export function savedWorkflowRoots(
 ): SavedWorkflowRoot[] {
   return [
     { scope: "project", dir: join(cwd, SAVED_WORKFLOW_PROJECT_DIR) },
-    { scope: "global", dir: join(options?.homeDir ?? homedir(), SAVED_WORKFLOW_GLOBAL_DIR) },
+    // 全局档的 HOME 锚点走 ZCODE_USER_HOME 契约：Dev 构建注入后落到 dev 数据根，
+    // 不再与正式版共用 ~/.zcode/workflows；生产不注入时行为不变。
+    { scope: "global", dir: join(options?.homeDir ?? resolveUserDataHome(), SAVED_WORKFLOW_GLOBAL_DIR) },
   ];
 }
 

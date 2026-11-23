@@ -17,7 +17,8 @@ run = "mise exec -- node scripts/mise-run.mjs pnpm bootstrap"
 
 [tasks.dev]
 description = "Start the desktop app in an isolated local test environment."
-env = { ZCODE_DATA_BASE_DIR = "{{env.HOME}}/.zcode-dev-home" }
+# Dev 构建的数据根由 desktopDataBaseDirBootstrap 代码级固定到 ~/.zcode-dev（含 agent 会话库），
+# 不再依赖 mise 注入 env；需要临时覆盖时仍可显式设置 ZCODE_DATA_BASE_DIR。
 run = "mise exec -- node scripts/mise-run.mjs pnpm dev:desktop:test"
 
 [tasks.dev-desktop-prod]

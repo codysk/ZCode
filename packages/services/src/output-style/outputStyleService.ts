@@ -1,8 +1,8 @@
 import type { OutputStyle, OutputStyleConfig } from "@zcode/shared";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import type { IOutputStyleService } from "./outputStyle.js";
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 const DEFAULT_OUTPUT_STYLE = "default";
@@ -12,8 +12,7 @@ const BUILT_IN_STYLES: OutputStyle[] = [
   {
     id: "default",
     name: "Default",
-    description:
-      "Completes coding tasks efficiently and provides concise responses",
+    description: "Completes coding tasks efficiently and provides concise responses",
     content: "",
     isBuiltIn: true,
     enabled: true,
@@ -21,8 +20,7 @@ const BUILT_IN_STYLES: OutputStyle[] = [
   {
     id: "explanatory",
     name: "Explanatory",
-    description:
-      "Explains implementation choices and codebase patterns",
+    description: "Explains implementation choices and codebase patterns",
     content: "",
     isBuiltIn: true,
     enabled: false,
@@ -30,8 +28,7 @@ const BUILT_IN_STYLES: OutputStyle[] = [
   {
     id: "learning",
     name: "Learning",
-    description:
-      "Pauses and asks you to write small pieces of code for hands-on practice",
+    description: "Pauses and asks you to write small pieces of code for hands-on practice",
     content: "",
     isBuiltIn: true,
     enabled: false,
@@ -39,8 +36,7 @@ const BUILT_IN_STYLES: OutputStyle[] = [
 ];
 
 function resolveUserHomeDir(): string {
-  const envHome = process.env.HOME?.trim() || process.env.USERPROFILE?.trim();
-  return envHome && envHome.length > 0 ? envHome : homedir();
+  return resolveUserDataHome();
 }
 
 function getUserOutputStylesDir(): string {
@@ -220,10 +216,7 @@ ${config.content}`;
     await writeFile(filePath, content, "utf-8");
   }
 
-  async function updateStyle(params: {
-    id: string;
-    config: OutputStyleConfig;
-  }): Promise<void> {
+  async function updateStyle(params: { id: string; config: OutputStyleConfig }): Promise<void> {
     const { id, config } = params;
 
     // 移除 'custom-' 前缀获取文件名

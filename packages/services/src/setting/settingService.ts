@@ -54,6 +54,10 @@ const debugLog = (...args: unknown[]) => {
 function resolveUserHomeDir() {
   // 独立桌面 Dev 实例已设置自己的 home，设置服务却仍写真实 HOME，
   // 导致启动迁移和外观操作污染其他实例。与 Electron 的显式 home 覆盖保持一致。
+  // ZCODE_USER_HOME 是 Dev 隔离契约（@zcode/shared/user-data-home），优先级最高：
+  // 让 setting.json（含 connectionProfiles）随 dev 数据根走，不与正式版共用。
+  const userHome = process.env.ZCODE_USER_HOME?.trim();
+  if (userHome) return userHome;
   const envHome =
     process.env.ZCODE_DESKTOP_HOME_DIR?.trim() ||
     process.env.HOME?.trim() ||

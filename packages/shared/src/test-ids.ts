@@ -234,6 +234,8 @@ export const TID_SSH_PRIVATE_KEY_INPUT = "ssh-private-key-input";
 export const TID_SSH_AUTH_PASSWORD = "ssh-auth-password";
 /** SSH 认证方式：私钥 */
 export const TID_SSH_AUTH_PRIVATE_KEY = "ssh-auth-private-key";
+/** SSH 认证方式：SSH Agent（含 ssh config 密钥回落） */
+export const TID_SSH_AUTH_AGENT = "ssh-auth-agent";
 /** WSL 发行版选择框 */
 export const TID_WSL_DISTRO_SELECT = "wsl-distro-select";
 /** WSL Linux 用户输入框 */

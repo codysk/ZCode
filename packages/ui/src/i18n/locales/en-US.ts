@@ -3045,6 +3045,9 @@ const enUS: Record<string, string> = {
   "ssh.authMethod": "Authentication method",
   "ssh.auth.password": "Password",
   "ssh.auth.privateKey": "Private key",
+  "ssh.auth.agent": "SSH Agent",
+  "ssh.auth.agentHint":
+    "Authenticate with the local SSH agent and ssh config keys. No credentials needed; behaves like the command-line ssh.",
   "ssh.assetInstallMode": "Resource download method",
   "ssh.advancedOptions": "Advanced options",
   "ssh.assetInstallMode.local-download-upload": "Download locally, then upload",

@@ -22,7 +22,7 @@ import type {
   SettingsSyncTaskImportResult,
 } from "@zcode/shared";
 import { copyFile, cp, link, lstat, mkdir, readFile, readdir, rm, symlink } from "node:fs/promises";
-import { homedir } from "node:os";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { parse as parseToml } from "smol-toml";
@@ -408,8 +408,7 @@ const CODEX_PLUGIN_MANIFEST_PATH = [".codex-plugin", "plugin.json"] as const;
 const INLINE_PLUGIN_MARKETPLACE = "inline";
 
 function resolveUserHomeDir(): string {
-  const envHome = process.env.HOME?.trim() || process.env.USERPROFILE?.trim();
-  return envHome && envHome.length > 0 ? envHome : homedir();
+  return resolveUserDataHome();
 }
 
 function getWorkspaceZcodeSkillRoot(workspacePath: string): string {

@@ -18,7 +18,7 @@ export interface UpdateConnectionProfileInput {
   profileDisplayName: string;
   sourceDisplayName?: string;
   target: Exclude<RemoteTarget, { kind: "server" }>;
-  sshAuthMethod?: "password" | "privateKey";
+  sshAuthMethod?: "password" | "privateKey" | "agent";
 }
 
 export interface ISourceServerManagementService {

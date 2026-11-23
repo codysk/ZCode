@@ -14,7 +14,7 @@ import {
 } from "@/lib/remoteConnectionDockerOptions.js";
 
 type RemoteKind = RemoteTarget["kind"];
-export type SSHAuthMethod = "password" | "privateKey";
+export type SSHAuthMethod = "password" | "privateKey" | "agent";
 
 export function buildAvailableKinds(options: {
   isWindowsDesktop: boolean;
@@ -375,7 +375,9 @@ export function useRemoteConnectionForm({
       setPassword("");
       setPrivateKeyPathState(nextPrivateKeyPath);
       setPrivateKeyPassphrase("");
-      setSshAuthMethod(nextPrivateKeyPath ? "privateKey" : "password");
+      // alias 未显式配置 IdentityFile 时与 ssh CLI 语义一致：走本机 SSH agent / 默认密钥，
+      // 不再默认要求输入密码；显式 IdentityFile 仍切到私钥模式并回填路径。
+      setSshAuthMethod(nextPrivateKeyPath ? "privateKey" : "agent");
     } finally {
       applyingSshAliasRef.current = false;
     }

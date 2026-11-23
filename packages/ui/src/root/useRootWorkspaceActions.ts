@@ -25,10 +25,12 @@ import { logger } from "@/logger.js";
 import { toast } from "@/components/ui/toast.js";
 import { ensureTaskNavigationWorkspace } from "@/app-shell/taskNavigationWorkspace.js";
 import { useComposerClientNamespace } from "@/hooks/useServices.js";
+import type { PendingTaskDraft } from "@/v4/composer/composerDraftStore.js";
 import {
   resolveComposerScope,
   ensurePendingTaskDraft,
   bindPendingTaskDraft,
+  completePendingTaskDraft,
   rememberComposerWorkspaceScope,
   readComposerWorkspaceScope,
 } from "@/v4/composer/composerDraftStore.js";
@@ -381,18 +383,51 @@ export function useRootWorkspaceActions({
           !projectId && (!hostId || hostId === "local")
             ? ensurePendingTaskDraft(resolveComposerScope(null, undefined, composerClientNamespace))
             : null;
-        const target = await services.projectService.prepareSession({
-          ...(projectId ? { projectId } : {}),
-          ...(hostId ? { hostId } : {}),
-          // worktree 模式由 Host 新建受管 worktree 并返回其中的 cwd；不复用未归类草稿目录。
-          ...(typeof request === "object" && request.worktree && projectId
+        // 草稿目录可能因数据根迁移或被清理而失效（reuse 复检报 project.directory-required）。
+        // 此时丢弃失效引用、按全新目录重建一次：composer 文本草稿在独立存储，正文不丢；
+        // 失效 draftId 不能再传给 startDraftInWorkspace，故恢复路径置空 activeDraft。
+        let activeDraft: PendingTaskDraft | null = pendingDraft;
+        const projectService = services.projectService;
+        if (!projectService) throw new Error("project.service-unavailable");
+        // worktree 模式由 Host 新建受管 worktree 并返回其中的 cwd；不复用未归类草稿目录。
+        const worktreeParam =
+          typeof request === "object" && request.worktree && projectId
             ? { worktree: request.worktree }
-            : {}),
-          // 显式 local 与省略 Host 是同一入口，不能漏掉待发送身份而另建目录。
-          ...(pendingDraft
-            ? { draftId: pendingDraft.draftId, reuseDraft: Boolean(pendingDraft.workspacePath) }
-            : {}),
-        });
+            : {};
+        const prepareSessionWithDraftRecovery = async () => {
+          if (!activeDraft) {
+            return projectService.prepareSession({
+              ...(projectId ? { projectId } : {}),
+              ...(hostId ? { hostId } : {}),
+              ...worktreeParam,
+            });
+          }
+          try {
+            return await projectService.prepareSession({
+              ...(projectId ? { projectId } : {}),
+              ...(hostId ? { hostId } : {}),
+              ...worktreeParam,
+              // 显式 local 与省略 Host 是同一入口，不能漏掉待发送身份而另建目录。
+              ...(activeDraft
+                ? { draftId: activeDraft.draftId, reuseDraft: Boolean(activeDraft.workspacePath) }
+                : {}),
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message !== "project.directory-required") throw error;
+            completePendingTaskDraft(
+              resolveComposerScope(null, undefined, composerClientNamespace),
+              activeDraft.draftId,
+            );
+            activeDraft = null;
+            return projectService.prepareSession({
+              ...(projectId ? { projectId } : {}),
+              ...(hostId ? { hostId } : {}),
+              ...worktreeParam,
+            });
+          }
+        };
+        const target = await prepareSessionWithDraftRecovery();
         if (!isCurrent()) return;
         if (hostId && hostId !== "local") {
           if (!target.workspaceIdentity || !openRemoteProjectWorkspace)
@@ -414,7 +449,7 @@ export function useRootWorkspaceActions({
           });
         startDraftInWorkspace(target.workspacePath, target.workspaceIdentity, {
           ...(typeof request === "string" ? { provider: request } : request),
-          ...(pendingDraft ? { draftId: pendingDraft.draftId } : {}),
+          ...(activeDraft ? { draftId: activeDraft.draftId } : {}),
           projectId: target.projectId,
         });
         if (typeof request === "object") request.onComplete?.();

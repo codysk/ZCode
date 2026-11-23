@@ -65,10 +65,10 @@ pnpm dev:desktop:test
 
 `pnpm dev:desktop` defaults to `pnpm dev:desktop:prod` and uses production service configuration. The startup script prepares local runtime assets, builds the desktop Agent, then starts Electron and source watchers.
 
-Set `ZCODE_DATA_BASE_DIR` to use a separate development data directory. For example, on macOS / Linux:
+The Dev build's data directory is code-pinned to `~/.zcode-dev` (isolated from the production `~/.zcode`, including the agent session DB) — no extra setup needed. To point it elsewhere temporarily, override `ZCODE_DATA_BASE_DIR`:
 
 ```bash
-ZCODE_DATA_BASE_DIR="$HOME/.zcode-dev-home" pnpm dev:desktop:test
+ZCODE_DATA_BASE_DIR="$HOME/.zcode-dev-e2e" pnpm dev:desktop:test
 ```
 
 ### Web Development

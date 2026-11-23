@@ -33,6 +33,16 @@ import {
   createKeyboardInteractiveResponder,
   normalizeSSHConnectError,
 } from "@zcode/server/remote/sshAuth.js";
+import { resolveSshExecutablePath } from "@zcode/services/node";
+import {
+  isPrivateKeyEncrypted,
+  resolveSshConnectPlan,
+  readUsablePrivateKey,
+} from "@zcode/server/remote/sshConfigResolution.js";
+import {
+  openSshNodeStream,
+  type SshProxyTransport,
+} from "@zcode/server/remote/sshProxyTransport.js";
 import {
   createSSHUploadProgressReporter,
   formatSSHUploadError,
@@ -44,6 +54,8 @@ export interface SSHBackendOptions {
   host: string;
   port?: number;
   username: string;
+  /** 用户连接时选择的 SSH config Host alias；存在时连接期以 `ssh -G` 的解析结果为准。 */
+  sshConfigAlias?: string;
   privateKeyPath?: string;
   privateKey?: string | Buffer;
   privateKeyPassphrase?: string;
@@ -97,6 +109,8 @@ export class SSHBackend implements IRemoteBackend {
   private client: SSHClient;
   private connected = false;
   private readonly config: ConnectConfig;
+  /** 构造时的连接快照；config 解析回退（-G 不可用）与私钥兜底都从这里取值。 */
+  private readonly optionsSnapshot: SSHBackendOptions;
   private homeDirPromise: Promise<string> | null = null;
   private execUploadOnly = false;
   private disposed = false;
@@ -106,6 +120,12 @@ export class SSHBackend implements IRemoteBackend {
   private additionalVerificationPrompted = false;
   /** 在途连接尝试的失败出口；dispose 用它让等待中的 ensureConnected 立即结束。 */
   private failPendingConnect: ((error: Error) => void) | undefined;
+  /** 连接期 config 解析/建链阶段的取消出口；dispose 用它终止在途 prepare。 */
+  private pendingPrepareCancel: ((error: Error) => void) | undefined;
+  /** 连接时选择的 SSH config Host alias；存在时连接期以 `ssh -G` 解析结果为准（spec: docs/ssh-remote-config-resolution.md）。 */
+  private readonly sshConfigAlias: string | undefined;
+  /** config 代理链（ProxyJump / ProxyCommand）的传输层；断线重连与 dispose 负责销毁。 */
+  private proxyTransport: SshProxyTransport | null = null;
   private readonly disconnectEmitter = new Emitter<RemoteDisconnectEvent>();
   readonly onDidDisconnect = this.disconnectEmitter.event;
 
@@ -140,6 +160,8 @@ export class SSHBackend implements IRemoteBackend {
     this.client.on("error", this.onClientError);
     this.client.on("close", this.onClientClose);
     this.client.on("end", this.onClientEnd);
+    this.optionsSnapshot = options;
+    this.sshConfigAlias = options.sshConfigAlias?.trim() || undefined;
     this.config = buildSSHConnectConfig({
       host: options.host,
       port: options.port,
@@ -187,6 +209,9 @@ export class SSHBackend implements IRemoteBackend {
     // 调用 ensureConnected。ssh2 Client 支持 end 后再次 connect，必须在 backend 边界阻止旧凭据复活。
     this.assertNotDisposed();
     if (this.connected) return;
+    // 连接期先解析有效 ssh config 与代理链（spec: docs/ssh-remote-config-resolution.md），
+    // 失败/取消出口与既有 ready/error 等待共用 dispose 语义。
+    const connectConfig = await this.prepareConnectConfigWithCancellation();
     return new Promise((resolve, reject) => {
       const settle = () => {
         this.client.off("ready", handleReady);
@@ -221,8 +246,104 @@ export class SSHBackend implements IRemoteBackend {
       this.client.once("ready", handleReady);
       this.client.once("error", handleConnectError);
       this.additionalVerificationPrompted = false;
-      this.client.connect(this.config);
+      this.client.connect(connectConfig);
     });
+  }
+
+  /** 连接期解析（config + 代理链），可被 dispose 取消；解析失败向上抛出明确错误。 */
+  private async prepareConnectConfigWithCancellation(): Promise<ConnectConfig> {
+    const prepare = this.prepareConnectConfig();
+    const cancelled = new Promise<never>((_, reject) => {
+      this.pendingPrepareCancel = reject;
+    });
+    try {
+      return await Promise.race([prepare, cancelled]);
+    } finally {
+      this.pendingPrepareCancel = undefined;
+    }
+  }
+
+  /**
+   * 解析连接期有效配置（spec: docs/ssh-remote-config-resolution.md）：
+   * - 断线重连先销毁旧代理链再重新解析（config 可能在两次连接之间变化）；
+   * - 无 ssh 二进制 / -G 失败 → 回退快照配置（旧行为）；代理链建立失败 → 直接抛错；
+   * - 每个 await 后检查 disposed，dispose 竞态下自行销毁已建立的代理链。
+   */
+  private async prepareConnectConfig(): Promise<ConnectConfig> {
+    this.teardownProxyTransport();
+    const sshExecutablePath = resolveSshExecutablePath();
+    if (!sshExecutablePath) {
+      return this.config;
+    }
+    const plan = await resolveSshConnectPlan(
+      {
+        host: this.optionsSnapshot.host,
+        port: this.optionsSnapshot.port,
+        username: this.optionsSnapshot.username,
+        sshConfigAlias: this.sshConfigAlias,
+        privateKeyPath: this.optionsSnapshot.privateKeyPath,
+      },
+      { sshExecutablePath },
+    );
+    if (this.disposed) {
+      throw new Error("SSH backend 已释放，无法重新建立连接");
+    }
+    if (plan.source === "snapshot") {
+      return this.config;
+    }
+    const target = plan.target;
+    // 私钥挑选在打开代理链之前：加密钥无口令等不可用密钥提前跳过，避免建链资源白费。
+    // config identityfile 优先（alias 模式 -G 权威）；快照 privateKey 作为回退。
+    // 回退值必须过同一可用性过滤：ssh2 对“加密私钥 + 未提供口令”在解析阶段硬失败，
+    // 直接透传会让 agent / 密码认证永远没有机会（与 ssh CLI 的“坏 key 换下一认证方式”语义相反）。
+    let privateKey: string | Buffer | undefined = await readUsablePrivateKey(
+      target.identityFiles,
+      this.optionsSnapshot.privateKeyPassphrase,
+    );
+    if (!privateKey && this.optionsSnapshot.privateKey) {
+      const snapshotKey =
+        typeof this.optionsSnapshot.privateKey === "string"
+          ? this.optionsSnapshot.privateKey
+          : this.optionsSnapshot.privateKey.toString("utf8");
+      if (!isPrivateKeyEncrypted(snapshotKey) || this.optionsSnapshot.privateKeyPassphrase) {
+        privateKey = this.optionsSnapshot.privateKey;
+      } else {
+        console.warn(
+          "[ssh] 快照私钥为加密私钥且未提供口令，跳过密钥认证改走 agent / 密码；如需密钥登录请在连接设置补私钥口令",
+        );
+      }
+    }
+    let sock: Duplex | undefined;
+    if (target.via) {
+      const transport = await openSshNodeStream(target, {
+        password: this.optionsSnapshot.password,
+        privateKeyPassphrase: this.optionsSnapshot.privateKeyPassphrase,
+        onLog: (message) => console.log(message),
+      });
+      if (this.disposed) {
+        transport.dispose();
+        throw new Error("SSH backend 已释放，无法重新建立连接");
+      }
+      this.proxyTransport = transport;
+      sock = transport.stream;
+    }
+    return {
+      ...buildSSHConnectConfig({
+        host: target.host,
+        port: target.port,
+        username: target.username,
+        privateKey,
+        passphrase: privateKey ? this.optionsSnapshot.privateKeyPassphrase : undefined,
+        password: this.optionsSnapshot.password,
+        agent: this.optionsSnapshot.agent,
+      }),
+      ...(sock ? { sock } : {}),
+    };
+  }
+
+  private teardownProxyTransport(): void {
+    this.proxyTransport?.dispose();
+    this.proxyTransport = null;
   }
 
   private reportDisconnect(reason: RemoteDisconnectReason, error?: Error): void {
@@ -642,6 +763,8 @@ export class SSHBackend implements IRemoteBackend {
     // 在途连接先失败并摘掉 ready 监听：迟到的 ready 不会再用已取消连接的旧凭据标记 connected，
     // 也不必等 socket 关闭（TCP 未建立时可能要等系统连接超时）。
     this.failPendingConnect?.(new Error("SSH backend 已释放，无法重新建立连接"));
+    this.pendingPrepareCancel?.(new Error("SSH backend 已释放，无法重新建立连接"));
+    this.teardownProxyTransport();
     // 首次握手失败后，ssh2 可能在 socket end/close 之后继续发出 error。
     // dispose 后保留 onClientError 作为 no-op sink，不能按 end/close 事件时序提前移除，
     // 否则迟到事件会逃逸为 uncaughtException，让共享 Window Host 连带退出其它 workspace。

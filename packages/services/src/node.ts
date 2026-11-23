@@ -47,6 +47,7 @@ import { getDataBaseDir } from "#src/paths.js";
 import { createGitWorktreeRepo } from "#src/git/managed-worktree/index.js";
 import { createGitCommandProvider } from "#src/git/providers/gitCommandProvider.js";
 import { HOST_WORKTREE_COMMAND } from "#src/zcode-agent/zcodeAgent.js";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { createTaskGroupService, ITaskGroupService, groupTaskKey } from "#src/task-groups/index.js";
 import { IGenUiService } from "./gen-ui/contract.js";
 import { createGenUiService } from "./gen-ui/node.js";
@@ -55,7 +56,6 @@ import { createGenUiService } from "./gen-ui/node.js";
 // Node.js service implementations — NOT safe to import in browser code
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { prependPathEntries } from "#src/runtime-tools/runtimeToolResolver.js";
 import {
@@ -172,7 +172,10 @@ export { createGitService } from "./git/gitService.js";
 export { GitCommitMessageGenerator } from "./git/gitCommitMessageGenerator.js";
 export { createGitCheckpointService } from "./git/gitCheckpointService.js";
 export { createSystemService } from "./system/systemService.js";
-export { listSSHConfigAliasesFromLocalConfig } from "./system/sshConfigAlias.js";
+export {
+  listSSHConfigAliasesFromLocalConfig,
+  resolveSshExecutablePath,
+} from "./system/sshConfigAlias.js";
 export { createTerminalService } from "./terminal/terminalService.js";
 export {
   createSettingService,
@@ -1211,7 +1214,7 @@ export function resolveBundledCuaHelperAppPath(
 export { isOfficialCuaPluginEnabledForWorkspace };
 
 export function hasGlobalCliZCodeCuaServer(env: NodeJS.ProcessEnv = process.env): boolean {
-  const home = env.HOME?.trim() || homedir();
+  const home = resolveUserDataHome(env);
   const configPath = join(home, ".zcode", "cli", "config.json");
   let parsed: unknown;
   try {

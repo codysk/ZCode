@@ -294,7 +294,20 @@ export function createProjectService(options: {
           );
           // 已交付的目录若被移走，只报告缺失；不能用 mkdir 静默重建空目录。
           if (params?.reuseDraft) {
-            if (!(await stat(path)).isDirectory()) throw new Error("project.directory-required");
+            // 草稿引用可能因数据根迁移或目录被清理而失效：stat 的 ENOENT 裸抛只会把
+            // 原始系统错误漏给上层。统一转成语义化 directory-required，调用方据此
+            // 丢弃失效引用后按全新目录重建（composer 文本草稿在独立存储，不受影响）。
+            try {
+              if (!(await stat(path)).isDirectory()) throw new Error("project.directory-required");
+            } catch (error) {
+              if (error instanceof Error && error.message === "project.directory-required") {
+                throw error;
+              }
+              if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") {
+                throw new Error("project.directory-required");
+              }
+              throw error;
+            }
           } else await mkdir(path, { recursive: true });
           return { workspacePath: path, additionalDirectories: [], projectId: null };
         }
