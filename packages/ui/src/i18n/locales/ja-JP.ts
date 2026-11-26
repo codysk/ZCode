@@ -2686,10 +2686,10 @@ const jaJP: Record<string, string> = {
   "ssh.auth.privateKey": "秘密鍵",
   "ssh.assetInstallMode": "リソースのダウンロード方法",
   "ssh.advancedOptions": "詳細オプション",
-  "ssh.assetInstallMode.local-download-upload": "ローカルでダウンロードしてアップロード",
+  "ssh.assetInstallMode.local-download-upload": "この端末からアップロード",
   "ssh.assetInstallMode.remote-download": "リモートサーバーでダウンロード",
   "ssh.assetInstallModeDescription":
-    "リモートサーバーでダウンロードするとアップロードの待ち時間を短縮できますが、サーバーが ZCode CDN に接続でき、ダウンロード・展開・チェックサム用のツールを備えている必要があります。",
+    "この端末からのアップロードではアプリ内蔵のパッケージを直接使用し、内蔵がない場合のみ ZCode CDN からダウンロードしてアップロードします。リモートサーバーでのダウンロードはアップロードの待ち時間を短縮できますが、サーバーが ZCode CDN に接続でき、ダウンロード・展開・チェックサム用のツールを備えている必要があります。",
   "ssh.password": "パスワード",
   "ssh.passwordPlaceholder": "SSH パスワードを入力",
   "ssh.privateKey": "秘密鍵",

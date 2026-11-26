@@ -2658,10 +2658,10 @@ const ruRU: Record<string, string> = {
   "ssh.auth.privateKey": "Закрытый ключ",
   "ssh.assetInstallMode": "Способ загрузки ресурсов",
   "ssh.advancedOptions": "Дополнительные параметры",
-  "ssh.assetInstallMode.local-download-upload": "Скачать локально и загрузить на сервер",
+  "ssh.assetInstallMode.local-download-upload": "Загрузить с этого компьютера",
   "ssh.assetInstallMode.remote-download": "Скачать на удалённом сервере",
   "ssh.assetInstallModeDescription":
-    "Загрузка на удалённом сервере сокращает ожидание, но сервер должен иметь доступ к CDN ZCode и инструменты для загрузки, распаковки и проверки контрольных сумм.",
+    "Загрузка с этого компьютера использует встроенный в приложение пакет напрямую и скачивает его с ZCode CDN только при отсутствии встроенного; загрузка на удалённом сервере сокращает ожидание, но сервер должен иметь доступ к CDN ZCode и инструменты для загрузки, распаковки и проверки контрольных сумм.",
   "ssh.password": "Пароль",
   "ssh.passwordPlaceholder": "Введите пароль SSH",
   "ssh.privateKey": "Закрытый ключ",

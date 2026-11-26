@@ -3050,10 +3050,10 @@ const enUS: Record<string, string> = {
     "Authenticate with the local SSH agent and ssh config keys. No credentials needed; behaves like the command-line ssh.",
   "ssh.assetInstallMode": "Resource download method",
   "ssh.advancedOptions": "Advanced options",
-  "ssh.assetInstallMode.local-download-upload": "Download locally, then upload",
+  "ssh.assetInstallMode.local-download-upload": "Upload from this machine",
   "ssh.assetInstallMode.remote-download": "Download on remote server",
   "ssh.assetInstallModeDescription":
-    "Remote server download reduces upload waiting, but the server must reach the ZCode CDN and have download, extract, and checksum tools.",
+    "Upload from this machine uses the app-bundled package directly and only downloads from the ZCode CDN when no bundled package exists; remote server download reduces upload waiting, but the server must reach the ZCode CDN and have download, extract, and checksum tools.",
   "ssh.password": "Password",
   "ssh.passwordPlaceholder": "Enter your SSH password",
   "ssh.privateKey": "Private key",

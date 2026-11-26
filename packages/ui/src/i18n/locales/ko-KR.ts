@@ -2612,10 +2612,10 @@ const koKR: Record<string, string> = {
   "ssh.auth.privateKey": "개인 키",
   "ssh.assetInstallMode": "리소스 다운로드 방식",
   "ssh.advancedOptions": "고급 옵션",
-  "ssh.assetInstallMode.local-download-upload": "로컬에서 다운로드 후 업로드",
+  "ssh.assetInstallMode.local-download-upload": "이 기기에서 업로드",
   "ssh.assetInstallMode.remote-download": "원격 서버에서 다운로드",
   "ssh.assetInstallModeDescription":
-    "원격 서버에서 다운로드하면 업로드 대기 시간이 줄지만, 서버가 ZCode CDN에 접속할 수 있어야 하며 다운로드, 압축 해제, 체크섬 도구가 있어야 합니다.",
+    "이 기기에서 업로드하면 앱에 내장된 패키지를 직접 사용하며, 내장 패키지가 없을 때만 ZCode CDN에서 다운로드한 뒤 업로드합니다. 원격 서버에서 다운로드하면 업로드 대기 시간이 줄지만, 서버가 ZCode CDN에 접속할 수 있어야 하며 다운로드, 압축 해제, 체크섬 도구가 있어야 합니다.",
   "ssh.password": "비밀번호",
   "ssh.passwordPlaceholder": "SSH 비밀번호 입력",
   "ssh.privateKey": "개인 키",

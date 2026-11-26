@@ -2825,10 +2825,10 @@ const zhCN: Record<string, string> = {
     "使用本机 SSH agent 与 ssh config 密钥认证，无需输入凭据；与命令行 ssh 的认证行为一致。",
   "ssh.assetInstallMode": "资源下载方式",
   "ssh.advancedOptions": "高级选项",
-  "ssh.assetInstallMode.local-download-upload": "本地下载后上传",
+  "ssh.assetInstallMode.local-download-upload": "本机上传安装包",
   "ssh.assetInstallMode.remote-download": "远端服务器下载",
   "ssh.assetInstallModeDescription":
-    "远端服务器下载可减少上传等待，但服务器需要能访问 ZCode CDN，并具备下载、解压和校验工具。",
+    "本机上传优先直接使用应用内建安装包，无内建时才从 ZCode CDN 下载到本机再上传；远端服务器下载可减少上传等待，但服务器需要能访问 ZCode CDN，并具备下载、解压和校验工具。",
   "ssh.password": "密码",
   "ssh.passwordPlaceholder": "输入 SSH 密码",
   "ssh.privateKey": "私钥",
