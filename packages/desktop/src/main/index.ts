@@ -1,3 +1,8 @@
+// 数据根隔离必须先于一切业务 import 执行：main 的模块级路径初始化（logger.ts 会在模块求值阶段
+// mkdir getAppConfigDir()/logs，经 preinstalled-tools→resourceManagerWindow→logger 的依赖链被
+// 第 2 行起的早期 import 提前触发）若在本 import 之后求值，env 注入尚未生效，日志目录会按默认
+// HOME 兜底建到原版 ~/.zcode/v2/logs（fork 隔离旁路；dev 同样受影响）。因此固定为本文件第一个 import。
+import "./desktopEarlyDataBaseDirBootstrap.js";
 import { resolvePreinstalledToolsRelease } from "@zcode/shared/preinstalled-tools";
 import {
   spawnPreinstalledToolsProcess,
@@ -13,7 +18,6 @@ import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import { installRequestSecurityDiagnostics } from "./request-security-edition/index.js";
 import { createLocalTtftExporter } from "./localTtftExporter.js";
 /* eslint-disable max-lines */
-import "./desktopEarlyDataBaseDirBootstrap.js";
 import "./desktopEarlyChromiumHardwareAccelerationBootstrap.js";
 import { powerMonitor, powerSaveBlocker } from "electron";
 import { crashCapturePaths } from "./appCrashCaptureBootstrap.js";

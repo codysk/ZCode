@@ -4,7 +4,6 @@
 
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { appendFile, mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { LogContext, LogEntry, Logger, LoggerFactory, LogRedactor } from "@zcode/contracts";
 import { LogLevel, LogLevelName } from "@zcode/contracts";
@@ -13,6 +12,7 @@ import {
   normalizeZCodeRuntimeEnv,
   createLocalTtftLogQueue,
 } from "@zcode/shared";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import {
   formatLocalLogDate,
   scheduleLogRetentionCleanup as scheduleRetentionCleanup,
@@ -250,7 +250,10 @@ export function createNodeLoggerFactory(options: NodeLoggerFactoryOptions = {}):
 }
 
 export function getDefaultLogDir(): string {
-  return join(homedir(), ".zcode", "cli", "log");
+  // 修复原因：原实现硬编码 homedir()，无视 ZCODE_USER_HOME 隔离契约，dev 与本 fork 打包版的
+  // CLI 子进程日志会写进原版 ~/.zcode/cli/log（数据隔离旁路）。经统一入口 resolveUserDataHome
+  // 解析（ZCODE_USER_HOME > HOME/USERPROFILE > homedir），与 config.json 等其余 cli 数据同根。
+  return join(resolveUserDataHome(), ".zcode", "cli", "log");
 }
 
 function getDefaultMinLevel(env: NodeJS.ProcessEnv | undefined): LogLevel {

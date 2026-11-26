@@ -75,7 +75,8 @@ export function getCredentialsFilePath(): string {
  * （ZCODE_USER_HOME > HOME/USERPROFILE > os.homedir()）。不能改用
  * ZCODE_DATA_BASE_DIR（CLI 读该文件时忽略它）或 ZCODE_DESKTOP_HOME_DIR
  * （agent 子进程不认），否则 App 写的文件和 Agent 读的文件会分叉。
- * ZCODE_USER_HOME 由 Dev 构建注入（彻底隔离 ~/.zcode），生产不设置、行为不变。
+ * ZCODE_USER_HOME 由 Dev 构建与本 fork 打包构建注入（彻底隔离 ~/.zcode，见
+ * docs/development-mise-runtime.md「打包版数据隔离」）；原版生产安装不设置、行为不变。
  */
 export function resolveAgentUserInstructionsHomeDir(env: NodeJS.ProcessEnv = process.env): string {
   return resolveUserDataHome(env);

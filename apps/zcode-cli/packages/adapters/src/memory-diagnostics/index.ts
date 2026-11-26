@@ -3,10 +3,10 @@ import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { Session } from "node:inspector";
 import { performance } from "node:perf_hooks";
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { getHeapStatistics } from "node:v8";
 import { CLI_MEMORY_DIAGNOSTIC_DIRECTORY, ZCODE_COMMIT, ZCODE_VERSION } from "@zcode/shared";
+import { resolveUserDataHome } from "@zcode/shared/user-data-home";
 import {
   createMemoryDiagnosticRecorder,
   MEMORY_DIAGNOSTIC_INTERVAL_MS,
@@ -104,7 +104,10 @@ export function startCliMemoryDiagnostics(
     }),
     write: (record) =>
       writeMemoryDiagnostic(
-        options.directory ?? join(homedir(), ".zcode", "cli", CLI_MEMORY_DIAGNOSTIC_DIRECTORY),
+        // 修复原因：原实现硬编码 homedir()，无视 ZCODE_USER_HOME 隔离契约，dev 与本 fork
+        // 打包版的诊断产物会写进原版 ~/.zcode/cli/memory-diagnostics（数据隔离旁路）；
+        // 经统一入口 resolveUserDataHome 解析，与 cli 日志、config.json 同根。
+        options.directory ?? join(resolveUserDataHome(), ".zcode", "cli", CLI_MEMORY_DIAGNOSTIC_DIRECTORY),
         record,
       ),
   });
