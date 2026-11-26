@@ -183,5 +183,7 @@
   "packages/desktop/test/credential-keyring-assets.test.ts",
   "packages/desktop/test/stdioTapCredentialRedaction.test.ts",
   "scripts/preinstalled-tools/catalog.test.ts",
-  "scripts/test/audit-conversation-session-json-out.test.mjs"
+  "scripts/test/audit-conversation-session-json-out.test.mjs",
+  "packages/desktop/test/electronBuilderBundledSourceServerAssets.test.ts",
+  "packages/desktop/test/sourceServerBundledReleaseResolver.test.ts"
 ]

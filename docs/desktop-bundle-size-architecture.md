@@ -3,7 +3,9 @@
 桌面端打包现在改成“两套资源明确分层”：
 
 - desktop 本地 agent 运行时按当前平台准备后进入安装包
-- remote 专用资源由 `@zcode/server-cli stage:remote-assets` 产出到 `mock-cdn/releases/...`，不再进入安装包
+- remote 专用资源由 `@zcode/server-cli stage:remote-assets` 产出到 `mock-cdn/releases/...`；当前版本的
+  Source Server release 资产（descriptor + 4 平台 archive）**随安装包内建**（见「打包态内建 Source Server 资产」），
+  其余 remote 资源不再进入安装包
 
 ## 目录约定
 
@@ -48,6 +50,45 @@
 - 上述 remote asset 环境变量可从 shell 传入，也可写在仓库根目录或 `packages/desktop` 下的 `.env.local`；shell 环境变量优先级更高
 - 若要一键启动“desktop dev + 生产态 remote SSH 下载/cache 链路”，使用 `pnpm dev:desktop:remote-prod`
 
+## 打包态内建 Source Server 资产
+
+打包态 SSH/WSL/Docker 远程连接不再依赖 CDN 下载 release archive：当前版本的全部 4 平台
+Source Server release 资产直接内建在 `.app` 的 `Contents/Resources/source-server/<version>/`
+（descriptor `source-server-release.json` + `zcode-server-<target>.tar.gz` × 4，约 +357MiB）。
+
+### 准备与打包链路
+
+1. `packages/desktop` 的 `prepare:runtime-assets` 默认链路先执行
+   `prepare:source-server-assets`（`pnpm --filter @zcode/server-cli run stage:remote-assets --skip-agent-build`），
+   把当前版本资产写入 `packages/desktop/mock-cdn/releases/<version>/`（与开发态同一 staging 产出，
+   不引入新的构建期环境变量开关）。
+2. `electron-builder.config.js` 的 `extraResources` 把 `mock-cdn/releases/<version>/`
+   （filter 只收 descriptor 与 `*.tar.gz`）映射到 `Resources/source-server/<version>/`。
+   版本号取 `buildMetadata.appVersion`，与运行时 `ZCODE_VERSION`（tsup define）同源于
+   `scripts/build-metadata.mjs`，保证资源目录名与运行时解析一致。
+3. `afterPack` 的 `assertPackagedSourceServerAssets` 对 descriptor 与 4 平台 archive 做存在性 +
+   非空校验，缺失即 fail-fast——extraResources 缺源时 electron-builder 会静默跳过，不允许产出缺资产
+   的安装包。
+
+### 运行时语义（bundled-release-local）
+
+- Main 侧 `resolveRemoteAssetDirs`（`packages/desktop/src/main/desktopRuntimeEnv.ts`）在打包态对
+  `process.resourcesPath/source-server/<ZCODE_VERSION>/source-server-release.json` 做单次
+  `existsSync`，存在时下发 `bundledAssetsDir` 与策略 `bundled-release-local`；不存在返回
+  `undefined`，回退既有 `release-versioned` 的 CDN + 缓存链路。
+- 不缓存该判定：升级到新版本后首次连接不会命中陈旧目录。
+- Host 侧 resolver（`sourceServerReleaseResolver.ts`）对内建资产优先本地直传
+  （`localArchivePath`），**优先于 SSH Profile 的 remote-download（`assetInstallMode`）偏好**；
+  WSL/Docker（固定 `local-download-upload`）同样受益。descriptor/SHA 校验失败只允许加速、不允许阻断
+  连接：吞掉异常、经连接日志 `warn` 留痕（`[source-server:resolve]`），落入 CDN 回退。
+- 「是否需要更新」判定仍按 `release-versioned` 的版本兼容性执行，不因内建而改变。
+- 开发态不受影响：mock-cdn 与 `ZCODE_DEV_REMOTE_ASSET_USE_CDN` 两个分支永不产生 `bundled-release-local`。
+
+### 体积影响与审计
+
+- 安装包统一 +~357MiB（du 实测 `mock-cdn/releases/4.0.0`）。
+- `audit-bundle-size.mjs` 的总大小阈值从 500 上调至 900 MiB（含内建资产与余量）。
+
 ## Source Server 准备链路
 
 1. `@zcode/server-cli stage:remote-assets` 构建 Server CLI/Core 与 Agent bundle。
@@ -71,7 +112,8 @@
   只保留 `node-pty/prebuilds/<target-platform-arch>`
 - 仅用于准备目标 prebuild 的 `@lydell/node-pty-*` 包；Linux 打包在 `beforePack` 将目标二进制复制到
   `node-pty/prebuilds/<target-platform-arch>` 后也必须排除这些源包
-- `mock-cdn/`
+- `mock-cdn/`（例外：`Resources/source-server/<version>/` 由 extraResources 直接映射保留，
+  是唯一允许进入安装包的 remote 资产；`*.tgz` 排除规则只作用于 asar 内文件，不裁剪该目录）
 - `*.map`
 - `*.pdb`
 - `*.tgz`

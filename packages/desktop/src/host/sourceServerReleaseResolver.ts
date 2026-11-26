@@ -304,6 +304,45 @@ async function resolveReleaseAsset(
     };
   }
 
+  // 打包态内建 release 资产（bundled-release-local，docs/desktop-bundle-size-architecture.md
+  // 「打包态内建 Source Server 资产」章节）：优先消费 .app 内 source-server/<ZCODE_VERSION>/ 目录，
+  // 命中即直接本地直传，连接链路完全不访问 CDN。该分支放在 installMode 分发之前是需求决定的覆盖：
+  // bundled 命中时 localArchivePath 优先于 ssh Profile 的 remote-download 偏好——transportAdapter
+  // 的既有判定是「有 localArchivePath 即本地上传」，与 dev-content-addressed 的覆盖语义一致；
+  // wsl/docker 目标（固定 local-download-upload）同样受益，免 CDN 下载直接上传。
+  // metadataOnly 不特判：与 dev 分支先例一致，返回方忽略 localArchivePath 无副作用。
+  if (
+    remoteAssets.sourceServerArtifactPolicy === "bundled-release-local" &&
+    remoteAssets.bundledAssetsDir
+  ) {
+    try {
+      const local = await resolveLocalDescriptor(remoteAssets.bundledAssetsDir, target);
+      if (local) {
+        return {
+          localArchivePath: local.archivePath,
+          target,
+          version: ZCODE_VERSION,
+          sha256: local.archive.sha256,
+          sizeBytes: local.archive.sizeBytes,
+          urls: local.archive.urls,
+        };
+      }
+    } catch (error) {
+      // 内建资产只允许加速、不允许阻断连接：resolveLocalDescriptor 对 archive 校验失败是 throw，
+      // bundled 策略必须吞掉并落入既有 release-versioned 的 CDN 回退（与 dev-content-addressed
+      // 的「缺失即失败」语义刻意相反）；resolveLocalDescriptor 内部不接收 signal，不会吞取消信号。
+      // 修复原因（终审发现）：完全静默会让「资产损坏→每连接 90MB 级 CDN 重下」无法与正常回退区分，
+      // 按 AGENTS.md 可恢复异常用 warn 的规范，经连接日志通道留痕。
+      options.onLog?.({
+        phase: "resolve",
+        level: "warn",
+        message: `Bundled Source Server release invalid, falling back to CDN: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+    }
+  }
+
   if (installMode === "local-download-upload") {
     // Bug 原因：开发态曾直接信任 gitignore 的 dist-release；同版本源码变化后仍会部署旧包。
     // 现在只接受本轮 staging 写入 mock-cdn 且通过 descriptor SHA/size 校验的本地产物。

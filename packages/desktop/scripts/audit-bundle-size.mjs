@@ -20,12 +20,15 @@ if (!artifactPath) {
 
 const absoluteArtifactPath = resolve(artifactPath);
 const limitsMb = {
-  default: 500,
-  ".dmg": 500,
-  ".zip": 500,
-  ".exe": 500,
-  ".appimage": 500,
-  ".deb": 500,
+  // Source Server release 4 平台资产随包内建（docs/desktop-bundle-size-architecture.md「打包态内建
+  // Source Server 资产」章节），安装包统一 +~357MiB（du 实测 mock-cdn/releases/4.0.0）；
+  // 在原 500MiB 基线上加内建资产与余量，上调至 900。
+  default: 900,
+  ".dmg": 900,
+  ".zip": 900,
+  ".exe": 900,
+  ".appimage": 900,
+  ".deb": 900,
 };
 
 function formatMiB(bytes) {

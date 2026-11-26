@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- Electron Builder config keeps related packaging hooks together so build order stays explicit. */
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -79,6 +79,16 @@ const HELPER_FILENAME = "zcode-browser-import-helper.exe";
 // 预装工具的 Windows 入口 shim 会被复制到用户的预装 bin 目录，由 Agent 直接运行，必须与 App 同一签名。
 const PREINSTALLED_ENTRY_SHIM = "preinstalled-entry-shim/zcode-preinstalled-entry-shim.exe";
 const BROWSER_IMPORT_HELPER = `browser-import/${HELPER_FILENAME}`;
+// Source Server release 的全平台 target 清单。@zcode/shared 导出的是 TS 源（electron-builder 用
+// 纯 Node 加载本配置时无法 import），这里与 SOURCE_SERVER_RELEASE_TARGETS
+// （packages/shared/src/source-server/release.ts）各自硬编码同一契约，由下方
+// assertPackagedSourceServerAssets 的存在性断言兜底，防止清单漂移后静默缺资产。
+const SOURCE_SERVER_BUNDLED_RELEASE_TARGETS = [
+  "linux-x64",
+  "linux-arm64",
+  "darwin-x64",
+  "darwin-arm64",
+];
 const runtimeModuleLookupRoots = [
   desktopPackageRoot,
   workspaceRoot,
@@ -243,6 +253,32 @@ function assertPackagedCuaHelper(context) {
   );
   if (!existsSync(appPath)) {
     throw new Error(`Packaged ZCode is missing bundled Computer Use Helper: ${appPath}`);
+  }
+}
+
+function assertPackagedSourceServerAssets(context) {
+  // Source Server release 资产必须随包内建（docs/desktop-bundle-size-architecture.md「打包态内建
+  // Source Server 资产」章节）。风险与 PREINSTALLED_ENTRY_SHIM 断言同款：extraResources 缺源文件时
+  // electron-builder 会静默跳过，产物里没有 source-server/<version>/ 目录，运行时只能悄悄退化为
+  // CDN 回退。这里对 descriptor 与全平台 archive 做存在性 + 非空校验，缺失即 fail-fast，
+  // 防止产出缺资产的安装包。版本与 extraResources 映射同用 buildMetadata.appVersion。
+  const sourceServerDir = join(
+    resolvePackagedResourcesDir(context),
+    "source-server",
+    buildMetadata.appVersion,
+  );
+  const requiredFiles = [
+    "source-server-release.json",
+    ...SOURCE_SERVER_BUNDLED_RELEASE_TARGETS.map((target) => `zcode-server-${target}.tar.gz`),
+  ];
+  const missing = requiredFiles.filter((fileName) => {
+    const filePath = join(sourceServerDir, fileName);
+    return !existsSync(filePath) || statSync(filePath).size === 0;
+  });
+  if (missing.length > 0) {
+    throw new Error(
+      `Packaged ZCode is missing bundled Source Server release assets: ${missing.join(", ")} in ${sourceServerDir}`,
+    );
   }
 }
 const shouldEnableWindowsVsign =
@@ -775,6 +811,10 @@ export default {
     runTimedSync("afterPack:assertPackagedMacElectronLocales", () =>
       assertPackagedMacElectronLocales(context),
     );
+    // Source Server 内建资产断言：extraResources 缺源时 electron-builder 静默跳过，必须 fail-fast 兜底。
+    runTimedSync("afterPack:assertPackagedSourceServerAssets", () =>
+      assertPackagedSourceServerAssets(context),
+    );
     if (actualWindowsTarget && shouldPackageComputerUseHelper) {
       await runTimedAsync("afterPack:finalizePackagedWindowsCuaHelper", () =>
         finalizePackagedWindowsCuaHelper({
@@ -872,6 +912,18 @@ export default {
       // 显式放入 resources/config，与主进程的 process.resourcesPath 解析保持一致。
       from: resolve(workspaceRoot, "config/default.json"),
       to: "config/default.json",
+    },
+    {
+      // Source Server release 资产随包内建（docs/desktop-bundle-size-architecture.md「打包态内建
+      // Source Server 资产」章节）：从 mock-cdn/releases/<version>/（与开发态 mock-cdn 同一
+      // stage:remote-assets staging 产出，由 prepare:runtime-assets 默认链路完成，electron-builder
+      // 只做拷贝不做 staging）映射到 Resources/source-server/<version>/，主进程按
+      // process.resourcesPath + ZCODE_VERSION 解析后走本地直传，缺失时运行时回退 CDN。
+      // 版本取 buildMetadata.appVersion（与 tsup define __ZCODE_VERSION__ 同源 build-metadata.mjs），
+      // 保证资源目录名与运行时 ZCODE_VERSION 一致；filter 只收 descriptor 与 tar.gz，不带其他文件。
+      from: resolve(desktopPackageRoot, "mock-cdn", "releases", buildMetadata.appVersion),
+      to: `source-server/${buildMetadata.appVersion}`,
+      filter: ["source-server-release.json", "*.tar.gz"],
     },
     {
       // Provider Registry 的 ZCode Built-in Config 是静态 Provider/Model 事实的唯一内置来源。

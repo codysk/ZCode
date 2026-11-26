@@ -64,6 +64,13 @@ export interface DeployOptions {
   signal?: AbortSignal;
   /** 开发态本地“伪 CDN”目录，运行时从这里读取 remote 资源 */
   mockCdnDir?: string;
+  /**
+   * 打包态 .app Contents/Resources/source-server/<ZCODE_VERSION> 的绝对路径（已含版本段）。
+   * 由 Desktop Main 解析后随 remoteAssets 下发，Host resolver 优先消费：命中内建
+   * descriptor/archive 时直接本地直传，不再走 CDN。语义与 mockCdnDir（dev-only）对称，
+   * 仅打包态存在；目录缺失时不会下发，resolver 回退既有 CDN + 缓存路径。
+   */
+  bundledAssetsDir?: string;
   /** 生产态 remote 资源 CDN 基址 */
   remoteCdnBaseUrl?: string;
   /** 生产态 remote 资源 CDN 基址候选，按顺序回退 */

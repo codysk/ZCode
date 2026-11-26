@@ -15,6 +15,7 @@ import {
   ZCODE_PRODUCT_FLAVOR,
   ZCODE_RUNTIME_ENV_KEY,
   ZCODE_VERSION,
+  SOURCE_SERVER_RELEASE_DESCRIPTOR_FILE_NAME,
   buildZCodeToolEnvPassthroughEnv,
   resolveRuntimeZCodeEndpointOrigin,
   resolveZaiBusinessBaseUrl,
@@ -93,7 +94,7 @@ export function getCredentialsDir() {
 
 export type RemoteAssetDirs = Pick<
   ConnectOptions,
-  "mockCdnDir" | "remoteCdnBaseUrl" | "remoteCdnBaseUrls" | "remoteCacheDir"
+  "mockCdnDir" | "remoteCdnBaseUrl" | "remoteCdnBaseUrls" | "remoteCacheDir" | "bundledAssetsDir"
 > & {
   sourceServerArtifactPolicy?: SourceServerArtifactPolicy;
 };
@@ -327,6 +328,21 @@ function resolveRemoteAssetCacheDir(localEnv: LocalRuntimeEnv = {}): string {
   return join(getElectronAppPath("userData"), "remote-assets-cache");
 }
 
+// 打包态内建 Source Server release 资产目录：.app Contents/Resources/source-server/<ZCODE_VERSION>。
+// 资源目录名与 electron-builder.config.js extraResources 的 to 映射（source-server/<version>）
+// 共用同一契约，双侧各自硬编码、由 afterPack 的 assertPackagedSourceServerAssets 断言兜底。
+// 仅在 descriptor 文件存在时返回目录（轻量单次 existsSync、无缓存）：Main 侧 IO 成本可忽略，
+// 不缓存则升级到新版本后首次连接不会命中陈旧目录。缺失返回 undefined，走『缺失回退 CDN』。
+function resolveBundledSourceServerAssetsDir(): string | undefined {
+  if (!isElectronAppPackaged()) {
+    return undefined;
+  }
+  const releaseDir = join(process.resourcesPath, "source-server", ZCODE_VERSION);
+  return existsSync(join(releaseDir, SOURCE_SERVER_RELEASE_DESCRIPTOR_FILE_NAME))
+    ? releaseDir
+    : undefined;
+}
+
 export function resolveRemoteAssetDirs(
   options: ResolveRemoteCdnOptions = {},
   localEnv: LocalRuntimeEnv = {},
@@ -336,12 +352,24 @@ export function resolveRemoteAssetDirs(
 
   // remote 资源之前和 desktop 本地 provider 资源共用安装包内路径，
   // 结果打包后会把整套 Linux 远程运行时一起塞进 .app，和“remote 资源走 CDN / mock-cdn”的职责边界冲突。
-  // 这里改成显式分流：开发态只读仓库里的 mock-cdn；生产态统一走 CDN + 本地缓存目录，
-  // 不再暴露任何安装包内 remote-assets 路径，避免 remote 资源再次被塞回安装包。
+  // 这里改成显式分流：开发态只读仓库里的 mock-cdn；生产态统一走 CDN + 本地缓存目录。
+  // 边界修订（docs/desktop-bundle-size-architecture.md「打包态内建 Source Server 资产」章节）：
+  // Source Server release 资产是唯一例外——随包内建 source-server/<version>（由 prepare 链 staging、
+  // extraResources 映射 + afterPack 断言保证存在），优先本地直传（bundled-release-local），
+  // 缺失或校验失败时回退 CDN，连接不因此失败；其余 remote 资源仍不暴露安装包内路径。
   // 功能开关：开发态默认继续走 mock-cdn，只有显式打开开关才切到公网 CDN。
   // 这样能兼容离线开发场景，同时允许在开发环境提前验证真实 CDN 下载链路。
   if (isElectronAppPackaged() || shouldUseRemoteCdnInDevelopment(localEnv)) {
+    // 仅打包态尝试内建资产；dev 打开 ZCODE_DEV_REMOTE_ASSET_USE_CDN 的 CDN 分支保持现状不变。
+    // resolveBundledSourceServerAssetsDir 内部自检 isElectronAppPackaged，未打包时恒 undefined。
+    const bundledAssetsDir = resolveBundledSourceServerAssetsDir();
     return {
+      ...(bundledAssetsDir
+        ? {
+            bundledAssetsDir,
+            sourceServerArtifactPolicy: "bundled-release-local" as const,
+          }
+        : {}),
       remoteCdnBaseUrl,
       remoteCdnBaseUrls,
       remoteCacheDir: resolveRemoteAssetCacheDir(localEnv),

@@ -28,7 +28,11 @@ const shouldPrepareWindowsCuaHelper =
 const shouldPrepareMacosWindowBounds = target.os === "darwin";
 
 // 本机桌面包不再内置 glm 原生二进制（prepare:glm），改为内置 agent 的 JS bundle（prepare:agent-bundle），
-// 运行时由 app 的 Electron Node runtime 执行。Source Server 资源由独立 stage:remote-assets 入口负责。
+// 运行时由 app 的 Electron Node runtime 执行。Source Server release 资产改为随包内建
+// （.app Contents/Resources/source-server/<ZCODE_VERSION>，见 docs/desktop-bundle-size-architecture.md
+// 「打包态内建 Source Server 资产」章节）：由 prepare:source-server-assets（即根 prepare:remote-assets
+// 同款 stage:remote-assets 入口）产出，mock-cdn 被 .gitignore 排除、干净 checkout 无缓存可用，
+// 因此默认链路必须全量重跑 staging（刻意不做新鲜度跳过，避免同版本号携带陈旧资产），不引入新构建期环境变量。
 const localRuntimeScripts = [
   "prepare:agent-bundle",
   ...(target.os === "win32" ? ["prepare:windows-runtime-host"] : []),
@@ -38,6 +42,16 @@ const localRuntimeScripts = [
   // 预装工具的 Windows 入口都由这个 shim 提供；缺失时入口无法写入。
   ...(target.os === "win32" ? ["prepare:preinstalled-entry-shim"] : []),
   ...(shouldPrepareMacosWindowBounds ? ["prepare:macos-window-bounds"] : []),
+  // Source Server release 资产 staging（→ @zcode/server-cli stage:remote-assets）：
+  // 写入 mock-cdn/releases/<version>/，供 electron-builder extraResources 随包内建。
+  // 必须传 --skip-agent-build（desktop package.json 的 script 里）：
+  // stage:remote-assets 的首个 target 会经 build-desktop-agent-cli.mjs 重跑 stageAgentBundle，
+  // 该实现会 rmSync 清空 bundled-agents/<platform>/glm 后只重放 zcode.cjs + node-repl-host，
+  // 把本链路前面 prepare:agent-bundle 已 stage 的官方插件与 koffi/sharp native 资产全部抹掉，
+  // electron-builder afterPack 的 assertPackagedCuaKoffi 随即 fail-fast（bundle 退出码 1）。
+  // agent bundle 已由本数组第一项 prepare:agent-bundle 在同一轮真实构建，复用即可，
+  // 干净 checkout 可复现性不受影响（与 wdio.conf.ts onPrepare 的 agentBundleBuiltThisRun 同款语义）。
+  "prepare:source-server-assets",
 ];
 
 function runTimedPnpmScript(scriptName) {

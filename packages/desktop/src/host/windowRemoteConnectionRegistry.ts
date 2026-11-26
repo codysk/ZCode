@@ -15,6 +15,9 @@ export interface WindowRemoteAssetDirs {
   remoteCdnBaseUrl?: string;
   remoteCdnBaseUrls?: string[];
   remoteCacheDir?: string;
+  // 打包态内建 Source Server release 资产目录（.app Contents/Resources/source-server/<version>），
+  // 与 main 侧 RemoteAssetDirs / shared 的 remoteAssetDirsSchema 镜像同步：仅打包态由 Main 下发。
+  bundledAssetsDir?: string;
   sourceServerArtifactPolicy?: SourceServerArtifactPolicy;
 }
 

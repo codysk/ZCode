@@ -707,6 +707,11 @@ export const remoteAssetDirsSchema = z.object({
   remoteCdnBaseUrl: z.string().optional(),
   remoteCdnBaseUrls: z.array(z.string()).optional(),
   remoteCacheDir: z.string().optional(),
+  // 打包态内建 Source Server release 资产目录。必须与 DeployOptions/RemoteAssetDirs 同步声明：
+  // zod 默认剥离未知键，Host 收到 InitLocal/ConnectRemoteWorkspace 时（hostMessagePortGuard
+  // safeParse 强校验）若缺此声明，Main 下发的 bundledAssetsDir 会被静默丢弃，
+  // InitLocal 通路退化为 CDN 回退。策略枚举扩展经 sourceServerArtifactPolicySchema 引用自动生效。
+  bundledAssetsDir: z.string().optional(),
   sourceServerArtifactPolicy: sourceServerArtifactPolicySchema.optional(),
 });
 

@@ -2627,3 +2627,13 @@ exceptions:
     paths:
       - apps/zcode-cli/packages/cli/src/browser-state-option.ts
     reason: --browser-state 与 --no-browser-state 的参数校验与来源解析（docs/browser-use/2026-11-17-cli-browser-state-spec.md §4），只被已有 unmanaged 的 CLI 入口 run.ts 调用。不新增模块边界或状态 owner；接管整个 zcode-cli 不在本次范围内。
+  - id: source-server-bundled-release-resolver-test
+    rule: unmanaged-new-file
+    paths:
+      - packages/desktop/test/sourceServerBundledReleaseResolver.test.ts
+    reason: 新增工程测试文件，覆盖打包态 bundled-release-local 策略下 resolveSourceServerReleaseAsset 的本地直传与 CDN 回退行为及 remoteAssetDirsSchema 运行时校验（spec：docs/desktop-bundle-size-architecture.md 新章节）；不接管 packages/desktop/test 其余未受管目录。
+  - id: electron-builder-bundled-source-server-assets-test
+    rule: unmanaged-new-file
+    paths:
+      - packages/desktop/test/electronBuilderBundledSourceServerAssets.test.ts
+    reason: 新增工程测试文件，校验 electron-builder.config.js 的 source-server/<version> extraResources 映射与 afterPack 存在性断言、prepare 默认链路包含 stage:remote-assets、bundle 体积审计限额上调（spec：docs/desktop-bundle-size-architecture.md 新章节）；不接管 packages/desktop/test 其余未受管目录。
